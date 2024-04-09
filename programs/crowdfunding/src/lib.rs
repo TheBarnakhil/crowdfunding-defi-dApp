@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("3KUxYdGpEHpKeCHjBWAV1dHgF1cKjwhDJuTWnyNKvx9j");
+declare_id!("6JhJqsf1ERN2NiESQU39S5QDjjGVdSj3bo5Nt2M6JRJy");
 
 #[program]
 pub mod crowdfunding {
@@ -88,9 +88,20 @@ pub mod crowdfunding {
     // }
 }
 
+// #[account(
+//     init,
+//     payer = payer,
+//     token::mint = mint,
+//     token::authority = payer,
+// )]
+// pub token: Account<'info, TokenAccount>,
+// #[account(address = new Pubkey('FQLCN4gYBgRDirdFiGfZUsGCoC4i5vpq33ePGWAZrqeN'))]
+// pub mint: Account<'info, Mint>,
+
 #[derive(Accounts)]
+#[instruction(name: String)]
 pub struct CreateCampaign<'info> {
-    #[account(init, payer=user, space=9000, seeds=[b"CAMPAIGN_DEMO".as_ref(), user.key().as_ref()], bump)]
+    #[account(init, payer=user, space=9000, seeds=[b"CAMPAIGN_DEMO".as_ref(), user.key().as_ref(), name.as_ref()], bump)]
     pub campaign: Account<'info, Campaign>,
     #[account(mut)]
     pub user: Signer<'info>,
