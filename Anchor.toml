@@ -2,7 +2,7 @@
 seeds = false
 skip-lint = false
 [programs.localnet]
-crowdfunding = "6JhJqsf1ERN2NiESQU39S5QDjjGVdSj3bo5Nt2M6JRJy"
+crowdfunding = "HfDfxyEvrXFuXbsM5A6WM75Vh196y8MnM8ZEcZcAE8h2"
 
 [registry]
 url = "https://api.apr.dev"
