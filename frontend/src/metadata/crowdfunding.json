@@ -29,6 +29,10 @@
         {
           "name": "description",
           "type": "string"
+        },
+        {
+          "name": "forgeMint",
+          "type": "publicKey"
         }
       ]
     },
@@ -78,6 +82,82 @@
           "type": "u64"
         }
       ]
+    },
+    {
+      "name": "donateForge",
+      "accounts": [
+        {
+          "name": "campaign",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "userTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "campaignTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "withdrawForge",
+      "accounts": [
+        {
+          "name": "campaign",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "userTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "campaignTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "bump",
+          "type": "u8"
+        }
+      ]
     }
   ],
   "accounts": [
@@ -101,12 +181,20 @@
           {
             "name": "admin",
             "type": "publicKey"
+          },
+          {
+            "name": "amountDonatedForge",
+            "type": "u64"
+          },
+          {
+            "name": "forgeMint",
+            "type": "publicKey"
           }
         ]
       }
     }
   ],
   "metadata": {
-    "address": "6JhJqsf1ERN2NiESQU39S5QDjjGVdSj3bo5Nt2M6JRJy"
+    "address": "6bGBwC51smQLwjUhB7Kp6ZTJwPDHMuDWgYzEiogGBtDi"
   }
 }

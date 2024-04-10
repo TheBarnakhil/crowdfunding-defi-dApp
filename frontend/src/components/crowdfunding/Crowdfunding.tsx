@@ -11,12 +11,13 @@ import {
   clusterApiUrl,
   LAMPORTS_PER_SOL,
   Signer,
+  Transaction,
 } from "@solana/web3.js";
 import { Program, AnchorProvider, BN } from "@project-serum/anchor";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { Mint, getMint, getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
+import { Mint, getMint, getOrCreateAssociatedTokenAccount, TOKEN_PROGRAM_ID, createAssociatedTokenAccount, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction } from "@solana/spl-token";
 
-import idl from "./crowdfunding.json"; 
+import idl from "@/metadata/crowdfunding.json"; 
 
 const programID = new PublicKey(idl.metadata.address);
 const network = clusterApiUrl("devnet"); // Adjust for your environment: local, devnet, or mainnet-beta
@@ -24,9 +25,12 @@ const opts = { preflightCommitment: "processed" };
 
 const WalletButton = () => {
   const wallet = useAnchorWallet();
-  const { select, wallets, publicKey, disconnect } = useWallet();
+  const { select, wallets, publicKey, disconnect, sendTransaction } = useWallet();
   const [error, setError] = useState("");
   const [campaigns, setCampaigns] = useState([]);
+
+  const campaign_name = "Akhil's Crowdfunding Demo"
+
 
   const getProvider = () => {
     if (!wallet) return null;
@@ -67,19 +71,42 @@ const WalletButton = () => {
     }
 
     try {
+      const connection = new Connection(network, "processed");
       const provider = getProvider();
       // @ts-ignore
       const program = new Program(idl, programID, provider);
       console.log(program, "Program");
-      const campaign_name = "Akhil's Crowdfunding 2"
-      const new_campaign_description = "Akhil's Crowdfunding 2"
+      const new_campaign_description = "Akhil's Crowdfunding Demo"
+      const forge_mint_address = "FQLCN4gYBgRDirdFiGfZUsGCoC4i5vpq33ePGWAZrqeN";
+
       const [campaign] = PublicKey.findProgramAddressSync(
         [Buffer.from("CAMPAIGN_DEMO"), publicKey.toBuffer(), Buffer.from(campaign_name)],
         program.programId
       );
 
+      let ata = await getAssociatedTokenAddress(
+          new PublicKey(forge_mint_address), // mint
+          campaign, // owner
+          true, // allowOwnerOffCurve
+      );
+
+      console.log(`ATA: ${ata.toBase58()}`);
+
+
+      let tx = new Transaction().add(
+        createAssociatedTokenAccountInstruction(
+          publicKey, // payer
+          ata, // ata
+          campaign, // owner
+          new PublicKey(forge_mint_address) // mint
+        )
+      );
+
+      console.log(`txhash: ${await sendTransaction(tx, connection)}`);
+
+
       const transaction = await program.methods
-        .createCampaign(campaign_name, new_campaign_description)
+        .createCampaign(campaign_name, new_campaign_description, new PublicKey(forge_mint_address))
         .accounts({
           campaign: campaign,
           user: provider?.wallet.publicKey || publicKey,
@@ -118,38 +145,94 @@ const WalletButton = () => {
     }
   };
 
-
-  //Psudeo
   const donateForge = async (publicKey: string) => {
     try {
       const provider = getProvider();
       if(provider){
-
-        //@ts-ignore
-        const program = new Program(idl, programID, provider);
-  
         const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
-        const mintAccountPublicKey = new PublicKey("FQLCN4gYBgRDirdFiGfZUsGCoC4i5vpq33ePGWAZrqeN");
+        const mintAccountPublicKey = new PublicKey("FQLCN4gYBgRDirdFiGfZUsGCoC4i5vpq33ePGWAZrqeN"); // Replace with your FORGE token mint address
         let mintAccount: Mint = await getMint(connection, mintAccountPublicKey);
-  
-        //This might not work, proposed alternative is to get the token account and if it doesn't exist we can create it: https://solana.stackexchange.com/questions/1231/how-do-i-get-or-create-associated-token-accounts-with-the-wallet-adapter
-        const userTokenAccount = await getOrCreateAssociatedTokenAccount(connection, provider?.wallet as unknown as Signer,mintAccountPublicKey, provider.wallet.publicKey)
-  
+
+        const userTokenAccount = await getOrCreateAssociatedTokenAccount(connection, provider?.wallet as unknown as Signer, mintAccountPublicKey, provider.wallet.publicKey);
+        // @ts-ignore
+        const program = new Program(idl, programID, provider);
+
+        const [campaign] = PublicKey.findProgramAddressSync(
+          [Buffer.from("CAMPAIGN_DEMO"), provider.wallet.publicKey.toBuffer(), Buffer.from(campaign_name)],
+          program.programId
+        );
+
+        const campaignTokenAccount = await getOrCreateAssociatedTokenAccount(connection, provider?.wallet as unknown as Signer, mintAccountPublicKey, campaign, true);
+
+        console.log("userTokenAccount", userTokenAccount.address.toString());
+        console.log("campaignTokenAccount", campaignTokenAccount.address.toString());
+
+        // //@ts-ignore
+        // const program = new Program(idl, programID, provider);
+
+        console.log(mintAccount.decimals, "mintAccount.decimals")
+
         await program.methods
-          .donate(new BN(0.2 * LAMPORTS_PER_SOL))
+          .donateForge(new BN(0.2 * 10**mintAccount.decimals)) // Assuming 0.2 FORGE tokens, adjust decimals as necessary
           .accounts({
-            campaign: publicKey,
+            campaign: new PublicKey(publicKey),
             user: provider?.wallet.publicKey,
-            systemProgram: SystemProgram.programId,
+            userTokenAccount: userTokenAccount.address,
+            campaignTokenAccount: campaignTokenAccount.address,
+            tokenProgram: TOKEN_PROGRAM_ID,
           })
           .rpc();
-        console.log("Donated some money to:", publicKey.toString());
+        console.log("Donated FORGE tokens to:", publicKey.toString());
         getAllCampaigns();
       }
     } catch (err) {
-      console.error("Error while donating", err);
+      console.error("Error while donating FORGE tokens", err);
     }
-  };
+ };
+
+
+  const withdrawForge = async (publicKey: string) => {
+    try {
+      const provider = getProvider();
+      if(provider){
+        const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
+        const mintAccountPublicKey = new PublicKey("FQLCN4gYBgRDirdFiGfZUsGCoC4i5vpq33ePGWAZrqeN"); // Replace with your FORGE token mint address
+        let mintAccount: Mint = await getMint(connection, mintAccountPublicKey);
+
+        
+        
+
+        //@ts-ignore
+        const program = new Program(idl, programID, provider);
+
+        const [campaign, bump] = await PublicKey.findProgramAddressSync(
+          [Buffer.from("CAMPAIGN_DEMO"), provider.wallet.publicKey.toBuffer(), Buffer.from(campaign_name)],
+          program.programId
+        );
+
+        const userTokenAccount = await getOrCreateAssociatedTokenAccount(connection, provider?.wallet as unknown as Signer, mintAccountPublicKey, provider.wallet.publicKey);
+        const campaignTokenAccount = await getOrCreateAssociatedTokenAccount(connection, provider?.wallet as unknown as Signer, mintAccountPublicKey, campaign, true);
+        console.log("userTokenAccount", userTokenAccount.address.toString(), "campaignTokenAccount", campaignTokenAccount.address.toString());
+
+
+        await program.methods
+          .withdrawForge(new BN(0.2 * 10**mintAccount.decimals), bump) // Assuming 0.2 FORGE tokens, adjust decimals as necessary
+          .accounts({
+            campaign: campaign,
+            user: provider?.wallet.publicKey,
+            userTokenAccount: userTokenAccount.address,
+            campaignTokenAccount: campaignTokenAccount.address,
+            tokenProgram: TOKEN_PROGRAM_ID,
+          })
+          .rpc();
+        console.log("Withdrew FORGE tokens from:", publicKey.toString());
+        getAllCampaigns();
+      }
+    } catch (err) {
+      console.error("Error withdrawing FORGE tokens", err);
+    }
+};
+
 
   const withdraw = async (publicKey: string) => {
     try {
@@ -179,19 +262,27 @@ const WalletButton = () => {
         campaigns.map((campaign: any) => {
           return (
             <div key={campaign?.pubkey.toString()}>
-              <p>Campaign ID: {campaign?.pubkey.toString()}</p>
-              <p>
+              <ul>Campaign ID: {campaign?.pubkey.toString()}</ul>
+              <ul>
                 Balance:{" "}
                 {(campaign.amountDonated / LAMPORTS_PER_SOL).toString()}
-              </p>
-              <p>Name: {campaign.name}</p>
-              <p>Description: {campaign.description}</p>
-              <p>Admin PubKey: {campaign.admin.toString()}</p>
+              </ul>
+              <ul>Name: {campaign.name}</ul>
+              <ul>Description: {campaign.description}</ul>
+              <ul>Admin PubKey: {campaign.admin.toString()}</ul>
+              <ul>Forge mint address: {campaign?.forgeMint?.toString() || ""}</ul>
+              <ul>Forge amount donated: {(campaign.amountDonatedForge/ LAMPORTS_PER_SOL).toString()} </ul> 
               <button onClick={() => donate(campaign?.pubkey.toString())}>
                 Donate!
               </button>
               <button onClick={() => withdraw(campaign?.pubkey.toString())}>
                 Withdraw!
+              </button>
+              <button onClick={() => donateForge(campaign?.pubkey.toString())}>
+                Donate Forge!
+              </button>
+              <button onClick={() => withdrawForge(campaign?.pubkey.toString())}>
+                Withdraw Forge!
               </button>
             </div>
           );

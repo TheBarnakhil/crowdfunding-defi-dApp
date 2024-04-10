@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
+use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 
-declare_id!("6JhJqsf1ERN2NiESQU39S5QDjjGVdSj3bo5Nt2M6JRJy");
+declare_id!("AEMPtcok39dFyi67YjbCb1C8oWHm2dTMspsu1s3DiKfW");
 
 #[program]
 pub mod crowdfunding {
@@ -11,12 +12,15 @@ pub mod crowdfunding {
         ctx: Context<CreateCampaign>,
         name: String,
         description: String,
+        forge_mint: Pubkey,
     ) -> Result<()> {
         let campaign = &mut ctx.accounts.campaign;
         campaign.name = name;
         campaign.description = description;
         campaign.amount_donated = 0;
+        campaign.amount_donated_forge = 0; 
         campaign.admin = *ctx.accounts.user.key;
+        campaign.forge_mint = forge_mint;
         Ok(())
     }
 
@@ -86,20 +90,44 @@ pub mod crowdfunding {
     //     system_program::transfer(cpi_context, amount)?;
     //     Ok(())
     // }
+
+    // New function to donate FORGE tokens
+    pub fn donate_forge(ctx: Context<DonateForge>, amount: u64) -> ProgramResult {
+        let cpi_accounts = Transfer {
+            from: ctx.accounts.user_token_account.to_account_info(),
+            to: ctx.accounts.campaign_token_account.to_account_info(),
+            authority: ctx.accounts.user.to_account_info(),
+        };
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+        token::transfer(cpi_ctx, amount)?;
+
+        (&mut ctx.accounts.campaign).amount_donated_forge += amount;
+        Ok(())
+    }
+
+    // New function to withdraw FORGE tokens
+    pub fn withdraw_forge(ctx: Context<WithdrawForge>, amount: u64, bump: u8) -> ProgramResult {
+        let cpi_accounts = Transfer {
+            from: ctx.accounts.campaign_token_account.to_account_info(),
+            to: ctx.accounts.user_token_account.to_account_info(),
+            authority: ctx.accounts.campaign.to_account_info(),
+        };
+        let name=&ctx.accounts.campaign.name;
+        let user = &ctx.accounts.user.key();
+        let seeds = [name.as_ref(), b"CAMPAIGN_DEMO".as_ref(), user.as_ref(), &[bump]];
+        let signer_seeds = &[&seeds[..]];
+
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
+        token::transfer(cpi_ctx, amount)?;
+
+        Ok(())
+    }
 }
 
-// #[account(
-//     init,
-//     payer = payer,
-//     token::mint = mint,
-//     token::authority = payer,
-// )]
-// pub token: Account<'info, TokenAccount>,
-// #[account(address = new Pubkey('FQLCN4gYBgRDirdFiGfZUsGCoC4i5vpq33ePGWAZrqeN'))]
-// pub mint: Account<'info, Mint>,
-
 #[derive(Accounts)]
-#[instruction(name: String)]
+#[instruction(name: String, description: String, forge_mint: Pubkey)]
 pub struct CreateCampaign<'info> {
     #[account(init, payer=user, space=9000, seeds=[b"CAMPAIGN_DEMO".as_ref(), user.key().as_ref(), name.as_ref()], bump)]
     pub campaign: Account<'info, Campaign>,
@@ -125,10 +153,38 @@ pub struct Donate<'info> {
     pub system_program: Program<'info, System>,
 }
 
+#[derive(Accounts)]
+pub struct DonateForge<'info> {
+    #[account(mut)]
+    pub campaign: Account<'info, Campaign>,
+    #[account(mut)]
+    pub user: Signer<'info>,
+    #[account(mut)]
+    pub user_token_account: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub campaign_token_account: Account<'info, TokenAccount>,
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+pub struct WithdrawForge<'info> {
+    #[account(mut)]
+    pub campaign: Account<'info, Campaign>,
+    #[account(mut)]
+    pub user: Signer<'info>,
+    #[account(mut)]
+    pub user_token_account: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub campaign_token_account: Account<'info, TokenAccount>,
+    pub token_program: Program<'info, Token>,
+}
+
 #[account]
 pub struct Campaign {
     pub name: String,
     pub description: String,
     pub amount_donated: u64,
     pub admin: Pubkey,
+    pub amount_donated_forge: u64,
+    pub forge_mint: Pubkey,
 }
