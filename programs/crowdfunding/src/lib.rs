@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 
-declare_id!("HfDfxyEvrXFuXbsM5A6WM75Vh196y8MnM8ZEcZcAE8h2");
+declare_id!("AEMPtcok39dFyi67YjbCb1C8oWHm2dTMspsu1s3DiKfW");
 
 #[program]
 pub mod crowdfunding {
@@ -107,29 +107,24 @@ pub mod crowdfunding {
     }
 
     // New function to withdraw FORGE tokens
-    pub fn withdraw_forge(ctx: Context<WithdrawForge>, amount: u64) -> ProgramResult {
+    pub fn withdraw_forge(ctx: Context<WithdrawForge>, amount: u64, bump: u8) -> ProgramResult {
         let cpi_accounts = Transfer {
             from: ctx.accounts.campaign_token_account.to_account_info(),
             to: ctx.accounts.user_token_account.to_account_info(),
             authority: ctx.accounts.campaign.to_account_info(),
         };
+        let name=&ctx.accounts.campaign.name;
+        let user = &ctx.accounts.user.key();
+        let seeds = [name.as_ref(), b"CAMPAIGN_DEMO".as_ref(), user.as_ref(), &[bump]];
+        let signer_seeds = &[&seeds[..]];
+
         let cpi_program = ctx.accounts.token_program.to_account_info();
-        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
         token::transfer(cpi_ctx, amount)?;
 
         Ok(())
     }
 }
-
-// #[account(
-//     init,
-//     payer = payer,
-//     token::mint = mint,
-//     token::authority = payer,
-// )]
-// pub token: Account<'info, TokenAccount>,
-// #[account(address = new Pubkey('FQLCN4gYBgRDirdFiGfZUsGCoC4i5vpq33ePGWAZrqeN'))]
-// pub mint: Account<'info, Mint>,
 
 #[derive(Accounts)]
 #[instruction(name: String, description: String, forge_mint: Pubkey)]

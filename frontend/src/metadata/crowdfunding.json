@@ -152,6 +152,10 @@
         {
           "name": "amount",
           "type": "u64"
+        },
+        {
+          "name": "bump",
+          "type": "u8"
         }
       ]
     }
@@ -191,6 +195,6 @@
     }
   ],
   "metadata": {
-    "address": "HfDfxyEvrXFuXbsM5A6WM75Vh196y8MnM8ZEcZcAE8h2"
+    "address": "6bGBwC51smQLwjUhB7Kp6ZTJwPDHMuDWgYzEiogGBtDi"
   }
 }
