@@ -50,6 +50,9 @@ This project aims to not just stick with crowdfunding but also explore the poten
 
 
 
+Here is a simple diagram to explain how the app works
+
+![image](https://github.com/TheBarnakhil/crowdfunding-defi-dApp/assets/39586134/cf19f73f-afae-4503-8d4f-59b7bce2f983)
 
 
 
